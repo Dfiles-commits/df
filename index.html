@@ -3,103 +3,851 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI RPG Chat</title>
+    <title>AI RPG Hub</title>
     <style>
-        :root{--bg:#0d1117;--surface:#161b22;--border:#30363d;--text:#e6edf3;--accent:#58a6ff;--gold:#d2a832;--green:#238636;--red:#f85149}
-        *{box-sizing:border-box;margin:0;padding:0}
-        body{font-family:system-ui,sans-serif;background:var(--bg);color:var(--text);height:100vh;display:flex;flex-direction:column}
-        .header{background:#21262d;padding:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;border-bottom:1px solid var(--border)}
-        .header select,.header input{padding:6px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font-size:12px}
-        .header input{flex:1;min-width:200px}
-        .messages{flex:1;overflow-y:auto;padding:10px;display:flex;flex-direction:column;gap:6px;font-size:13px}
-        .msg{max-width:80%;padding:8px 12px;border-radius:12px;line-height:1.3;word-wrap:break-word}
-        .user{align-self:flex-end;background:#1f6feb;border-bottom-right-radius:4px}
-        .bot{align-self:flex-start;background:#21262d;border:1px solid var(--border);border-bottom-left-radius:4px}
-        .input-box{display:flex;padding:8px;gap:6px;border-top:1px solid var(--border)}
-        .input-box input{flex:1;padding:10px;border:1px solid var(--border);border-radius:20px;outline:none;background:var(--surface);color:var(--text)}
-        .input-box button{padding:10px 20px;background:var(--green);color:#fff;border:none;border-radius:20px;cursor:pointer;font-weight:bold}
-        .input-box button:disabled{opacity:.5}
+        :root {
+            --bg:#0d1117; --surface:#161b22; --border:#30363d; --text:#e6edf3;
+            --accent:#58a6ff; --gold:#d2a832; --green:#238636; --red:#f85149;
+            --purple:#bc8cff; --orange:#f0883e;
+        }
+        *{box-sizing:border-box;margin:0;padding:0;}
+        html,body{
+            width:100vw;height:100vh;height:100dvh;overflow:hidden;
+            font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);font-size:13px;
+        }
+        .app{display:flex;flex-direction:column;height:100%;}
+        .topbar{display:flex;gap:1px;background:#21262d;border-bottom:1px solid var(--border);flex-shrink:0;overflow-x:auto;}
+        .topbar button{padding:5px 8px;border:none;background:transparent;color:#8b949e;cursor:pointer;font-size:10px;white-space:nowrap;border-bottom:2px solid transparent;}
+        .topbar button.active{color:var(--accent);border-bottom-color:var(--accent);}
+        .panels{flex:1;overflow:hidden;position:relative;}
+        .panel{display:none;position:absolute;inset:0;overflow-y:auto;}
+        .panel.active{display:flex;flex-direction:column;}
+
+        .form{padding:8px;max-width:500px;margin:0 auto;width:100%;display:flex;flex-direction:column;gap:5px;}
+        .form label{font-size:10px;font-weight:500;}
+        .form input,.form textarea,.form select{width:100%;padding:5px 8px;border:1px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text);font-size:11px;}
+        .form textarea{resize:vertical;min-height:40px;font-family:inherit;}
+        .form button{padding:7px;background:var(--green);color:#fff;border:none;border-radius:4px;cursor:pointer;font-weight:600;font-size:11px;}
+        .form button.danger{background:var(--red);}
+        .form button.secondary{background:#30363d;}
+        .form .row{display:flex;gap:5px;}
+        .form .row>div{flex:1;}
+        .hint{font-size:9px;color:#8b949e;margin-top:-3px;}
+        .status{text-align:center;font-size:10px;min-height:14px;}
+        .status.ok{color:#3fb950;}.status.err{color:var(--red);}
+
+        /* Чат */
+        .chat-header{display:flex;align-items:center;padding:4px 8px;background:#21262d;border-bottom:1px solid var(--border);gap:5px;flex-wrap:wrap;flex-shrink:0;}
+        .chat-header .cname{color:var(--accent);font-weight:bold;font-size:12px;}
+        .chat-header .rep{color:var(--purple);font-size:10px;}
+        .chat-header .bal{color:var(--gold);font-size:11px;font-weight:bold;}
+        .chat-header select{padding:3px 5px;border-radius:4px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:10px;}
+        .badge{font-size:8px;padding:1px 5px;border-radius:6px;}
+        .badge.gr{background:#f5750c33;color:#f5750c;}.badge.or{background:#58a6ff33;color:#58a6ff;}
+        .badge.ol{background:#8b5cf633;color:#8b5cf6;}
+        .badge.pat{background:#bc8cff33;color:var(--purple);}
+
+        .chat-body{display:flex;flex:1;overflow:hidden;}
+        .chat-main{flex:1;display:flex;flex-direction:column;min-width:0;}
+        .messages{flex:1;overflow-y:auto;padding:6px;display:flex;flex-direction:column;gap:3px;font-size:11px;}
+        .messages::-webkit-scrollbar{width:3px;}
+        .messages::-webkit-scrollbar-thumb{background:var(--border);border-radius:6px;}
+        .msg{max-width:82%;padding:5px 9px;border-radius:10px;line-height:1.3;word-wrap:break-word;animation:fadeIn .12s ease;}
+        @keyframes fadeIn{from{opacity:0;transform:translateY(3px);}to{opacity:1;transform:translateY(0);}}
+        .umsg{align-self:flex-end;background:#1f6feb;border-bottom-right-radius:3px;}
+        .bmsg{align-self:flex-start;background:#21262d;border:1px solid var(--border);border-bottom-left-radius:3px;}
+        .bmsg strong{color:#ffa657;}
+        .lmsg{align-self:center;font-size:8px;padding:2px 6px;border-radius:6px;background:#1a1f2b;}
+        .lmsg.gv{color:#3fb950;}.lmsg.tk{color:#f85149;}.lmsg.sd{color:#d2a832;}
+        .lmsg.rep{color:#bc8cff;}.lmsg.alt{color:#f0883e;}
+        .error{color:var(--red);text-align:center;font-size:9px;}
+
+        .input-box{display:flex;padding:5px;gap:4px;border-top:1px solid var(--border);background:var(--bg);flex-shrink:0;}
+        .input-box input{flex:1;padding:7px 10px;border:1px solid var(--border);border-radius:14px;outline:none;font-size:11px;background:var(--surface);color:var(--text);}
+        .input-box input:focus{border-color:var(--accent);}
+        .input-box button{padding:7px 12px;background:var(--green);color:#fff;border:none;border-radius:14px;cursor:pointer;font-weight:600;font-size:11px;}
+        .input-box button:disabled{background:#30363d;cursor:not-allowed;}
+
+        .sidebar{width:160px;background:#0b0f14;border-left:1px solid var(--border);padding:5px;display:flex;flex-direction:column;gap:3px;font-size:9px;overflow-y:auto;flex-shrink:0;}
+        .sidebar h4{color:var(--accent);text-align:center;font-size:10px;}
+        .inv-item{display:flex;justify-content:space-between;padding:3px 5px;background:#161b22;border-radius:3px;border:1px solid var(--border);font-size:9px;}
+        .inv-item .cnt{color:var(--gold);font-weight:bold;}
+        .sidebar .empty{color:#8b949e;text-align:center;font-style:italic;}
+        .sidebar .btn-row{display:flex;flex-wrap:wrap;gap:2px;}
+        .sidebar button{flex:1;min-width:40px;padding:2px;background:#21262d;color:#8b949e;border:1px solid var(--border);border-radius:3px;cursor:pointer;font-size:8px;}
+        .sidebar button:hover{background:#30363d;color:var(--text);}
+
+        /* Список персонажей */
+        .char-list{display:flex;flex-direction:column;gap:4px;max-height:50vh;overflow-y:auto;}
+        .char-card{display:flex;justify-content:space-between;align-items:center;padding:6px 8px;background:#161b22;border:1px solid var(--border);border-radius:6px;cursor:pointer;font-size:11px;}
+        .char-card.active{border-color:var(--accent);background:#1a2b3c;}
+        .char-card .cc-name{font-weight:bold;color:var(--accent);}
+        .char-card .cc-pat{font-size:9px;color:#8b949e;}
+        .char-card .cc-rep{font-size:9px;color:var(--purple);}
+        .char-card .cc-btns{display:flex;gap:3px;}
+        .char-card .cc-btns button{padding:2px 5px;font-size:8px;border-radius:3px;border:1px solid var(--border);background:#21262d;color:var(--text);cursor:pointer;}
+
+        @media(max-width:600px){
+            .chat-body{flex-direction:column;}
+            .sidebar{width:100%;max-height:90px;flex-direction:row;flex-wrap:wrap;border-left:none;border-top:1px solid var(--border);}
+            .sidebar h4{width:100%;}
+        }
+
+        /* Алерт */
+        .alert-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.8);display:flex;justify-content:center;align-items:center;z-index:999;}
+        .alert-box{background:#161b22;border:2px solid var(--accent);border-radius:12px;padding:20px;text-align:center;max-width:350px;animation:bounce .5s;}
+        @keyframes bounce{0%{transform:scale(0.5);opacity:0;}50%{transform:scale(1.1);}100%{transform:scale(1);opacity:1;}}
+        .alert-box h3{color:var(--accent);margin-bottom:8px;}
+        .alert-box p{font-size:12px;margin-bottom:12px;}
+        .alert-box button{padding:8px 20px;background:var(--accent);color:#000;border:none;border-radius:6px;cursor:pointer;font-weight:bold;}
+
+        /* Смена темы */
+        .theme-dark{--bg:#0d1117;--surface:#161b22;--border:#30363d;--text:#e6edf3;--accent:#58a6ff;}
+        .theme-neon{--bg:#0a0a0a;--surface:#111;--border:#0f0;--text:#0f0;--accent:#0f0;--gold:#ff0;--green:#0f0;--red:#f00;--purple:#f0f;}
+        .theme-forest{--bg:#1a2b1a;--surface:#243324;--border:#4a6b4a;--text:#d4e4d4;--accent:#8fbc8f;--gold:#daa520;--green:#6b8e23;--purple:#9370db;}
+        .theme-ocean{--bg:#0a1628;--surface:#162a40;--border:#2a4a6a;--text:#c8e0f0;--accent:#4a9eff;--gold:#ffd700;--green:#40c0a0;--purple:#8090ff;}
     </style>
 </head>
-<body>
-    <div class="header">
-        <input type="text" id="ollamaUrl" placeholder="Cloudflare URL из Colab" />
-        <select id="model">
-            <option value="qwen2.5:7b">Qwen 2.5 7B</option>
-            <option value="llama3.2:3b">Llama 3.2 3B</option>
-            <option value="gemma2:9b">Gemma 2 9B</option>
-        </select>
-        <button id="connectBtn">🔗 Подключить</button>
+<body class="theme-dark">
+    <div class="app">
+        <div class="topbar">
+            <button id="tabChars" class="active">👥 Персонажи</button>
+            <button id="tabAPI">🔑 API</button>
+            <button id="tabChat">💬 Чат</button>
+            <button id="tabLog">📋 Лог</button>
+        </div>
+
+        <div class="panels">
+            <!-- 👥 Персонажи -->
+            <div class="panel active" id="panelChars">
+                <div class="form">
+                    <h4 style="color:var(--accent);">👥 Управление персонажами</h4>
+                    <div class="char-list" id="charList"></div>
+                    <button id="addCharBtn">➕ Новый персонаж</button>
+                    
+                    <div id="charEditor" style="display:none;gap:5px;flex-direction:column;">
+                        <label>Имя:</label><input type="text" id="editName" />
+                        <label>Язык:</label>
+                        <select id="editLang">
+                            <option value="ru">🇷🇺 Русский</option>
+                            <option value="en">🇬🇧 English</option>
+                            <option value="de">🇩🇪 Deutsch</option>
+                            <option value="fr">🇫🇷 Français</option>
+                            <option value="es">🇪🇸 Español</option>
+                            <option value="jp">🇯🇵 日本語</option>
+                        </select>
+                        <label>Паттерн:</label>
+                        <select id="editPattern">
+                            <option value="talk">💬 Обычный диалог</option>
+                            <option value="trade">🛒 Торговец</option>
+                            <option value="surprise">🎁 С сюрпризом</option>
+                            <option value="reputation">⭐ Репутация</option>
+                        </select>
+                        <label>Характер:</label><textarea id="editPersona" rows="2"></textarea>
+                        
+                        <div id="tradeSettings" style="display:none;gap:3px;flex-direction:column;">
+                            <label>Предметы (через запятую):</label><input type="text" id="editItems" value="SWORD,POTION,SHIELD" />
+                            <label>Цены (через запятую):</label><input type="text" id="editPrices" value="50,30,75" />
+                        </div>
+                        
+                        <div id="surpriseSettings" style="display:none;gap:3px;flex-direction:column;">
+                            <label>Шанс сюрприза (%):</label><input type="number" id="editSurpriseChance" value="20" min="1" max="100" />
+                            <label>Сюрпризы (через | ):</label><textarea id="editSurprises" rows="2">GIVE:MONEY 100|GIVE:POTION 3|SOUND:magic|ALERT:Тайное послание!</textarea>
+                        </div>
+
+                        <div id="reputationSettings" style="display:none;gap:3px;flex-direction:column;">
+                            <label>Порог репутации для дружбы:</label><input type="number" id="editRepThreshold" value="5" min="1" />
+                            <label>Характер при низкой репутации:</label><textarea id="editRepLow" rows="2">Ты холоден и недоверчив.</textarea>
+                            <label>Характер при высокой репутации:</label><textarea id="editRepHigh" rows="2">Ты дружелюбен и щедр!</textarea>
+                        </div>
+
+                        <div class="row">
+                            <button id="saveCharEdit">💾 Сохранить</button>
+                            <button id="cancelCharEdit" class="secondary">Отмена</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 🔑 API -->
+            <div class="panel" id="panelAPI">
+                <div class="form">
+                    <label>🟠 Groq API Key:</label><input type="password" id="groqKey" placeholder="gsk_..." />
+                    <label>🔵 OpenRouter API Key:</label><input type="password" id="orKey" placeholder="sk-or-v1-..." />
+                    <label>🖥️ Ollama URL (из Colab):</label><input type="text" id="ollamaUrl" placeholder="https://....trycloudflare.com" />
+                    <label>🎓 Gradio URL (из Colab):</label>
+                    <input type="text" id="gradioUrl" placeholder="https://....gradio.live" />
+                    <div class="hint">Запусти Colab с cloudflared и вставь URL</div>
+                    <button id="saveAPI">💾 Сохранить</button>
+                    <div class="status" id="apiStatus"></div>
+                    <label>Тема:</label>
+                    <select id="themeSelect">
+                        <option value="theme-dark">🌙 Тёмная</option>
+                        <option value="theme-neon">💚 Неон</option>
+                        <option value="theme-forest">🌲 Лес</option>
+                        <option value="theme-ocean">🌊 Океан</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- 💬 Чат -->
+            <div class="panel" id="panelChat">
+                <div class="chat-header">
+                    <span class="cname" id="cname">🤖</span>
+                    <span class="rep" id="repDisplay"></span>
+                    <span class="bal">🪙<span id="balDisplay">0</span></span>
+                    <span class="badge gr" id="badge">groq</span>
+                    <span class="badge pat" id="patBadge">talk</span>
+                    <select id="charSelect"></select>
+                    <select id="modelSelect">
+
+                        <optgroup label="🟠 Groq">
+                            <option value="groq:qwen/qwen3-32b">Qwen3 32B</option>
+                            <option value="groq:llama-3.3-70b-versatile">Llama 3.3 70B</option>
+                            <option value="groq:llama-3.1-8b-instant">Llama 3.1 8B</option>
+                            <option value="groq:meta-llama/llama-4-scout-17b-16e-instruct">Llama 4 Scout 17B</option>
+                            <option value="groq:openai/gpt-oss-120b">GPT-OSS 120B</option>
+                            <option value="groq:openai/gpt-oss-20b">GPT-OSS 20B</option>
+                            <option value="groq:groq/compound">Groq Compound</option>
+                            <option value="groq:groq/compound-mini">Groq Compound Mini</option>
+                        </optgroup>
+                        <optgroup label="🔵 OpenRouter">
+                            <option value="or:inclusionai/ling-2.6-1t:free">Ling-2.6-1T</option>
+                            <option value="or:inclusionai/ling-2.6-flash:free">Ling-2.6-Flash</option>
+                            <option value="or:tencent/hy3-preview:free">Tencent Hy3</option>
+                            <option value="or:google/gemma-4-26b-a4b-it:free">Gemma 4 26B</option>
+                            <option value="or:google/gemma-4-31b-it:free">Gemma 4 31B</option>
+                        </optgroup>
+                        <optgroup label="🎓 Gradio (Colab)">
+                            <option value="gradio:qwen2.5:1.5b">Gradio Chat</option>
+                        </optgroup>
+                        <optgroup label="🖥️ Ollama (Colab)">
+                            <option value="ollama:qwen2.5:1.5b">Qwen 2.5 1.5</option>
+                            <option value="ollama:llama3.2:3b">Llama 3.2 3B</option>
+                        </optgroup>
+                    </select>
+                    
+                </div>
+                <div class="chat-body">
+                    <div class="chat-main">
+                        <div class="messages" id="messages"></div>
+                        <div class="input-box">
+                            <input type="text" id="userInput" placeholder="Сообщение..." autocomplete="off" />
+                            <button id="sendBtn">➤</button>
+                        </div>
+                    </div>
+                    <div class="sidebar">
+                        <h4>🎒 Инвентарь</h4>
+                        <div id="invItems"><div class="empty">Пусто</div></div>
+                        <div class="btn-row">
+                            <button id="saveBtn">💾</button><button id="loadBtn">📂</button>
+                            <button id="exportBtn">📋</button><button id="importBtn">📥</button>
+                            <button id="resetBtn">🔄</button>
+                        </div>
+                        <input type="file" id="importFile" accept=".json" style="display:none;" />
+                    </div>
+                </div>
+            </div>
+
+            <!-- 📋 Лог -->
+            <div class="panel" id="panelLog">
+                <div class="form">
+                    <h4 style="color:var(--accent);">📋 Лог</h4>
+                    <div id="logContent" style="font-family:monospace;font-size:9px;max-height:70vh;overflow-y:auto;"></div>
+                    <button id="clearLog">🗑 Очистить</button>
+                </div>
+            </div>
+        </div>
     </div>
-    <div class="messages" id="messages"></div>
-    <div class="input-box">
-        <input type="text" id="userInput" placeholder="Сообщение..." autocomplete="off" />
-        <button id="sendBtn">➤</button>
+
+    <!-- Алерт оверлей -->
+    <div class="alert-overlay" id="alertOverlay" style="display:none;">
+        <div class="alert-box">
+            <h3 id="alertTitle">🎉</h3>
+            <p id="alertText"></p>
+            <button onclick="document.getElementById('alertOverlay').style.display='none'">ОК</button>
+        </div>
     </div>
 
     <script>
-        let ollamaURL = '';
-        let conversation = [];
+        // ==================== STATE ====================
+        const S = {
+            groqKey: '',
+            orKey: '',
+            ollamaUrl: '',
+            balance: 0,
+            inventory: {},
+            characters: [],
+            activeCharId: null,
+            logs: [],
+            provider: 'groq',
+            theme: 'theme-dark',
+        };
 
-        document.getElementById('connectBtn').addEventListener('click', () => {
-            const url = document.getElementById('ollamaUrl').value.trim();
-            if (url) {
-                ollamaURL = url;
-                localStorage.setItem('ollama_url', url);
-                addMsg('✅ Подключено к Ollama!', 'bot');
+        // ==================== AUDIO ====================
+        let audioCtx;
+        function playBeep(freq, type, dur, vol = 0.08) {
+            if (!audioCtx) audioCtx = new(window.AudioContext || window.webkitAudioContext)();
+            const o = audioCtx.createOscillator();
+            const g = audioCtx.createGain();
+            o.type = type; o.frequency.value = freq;
+            g.gain.value = vol;
+            g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur);
+            o.connect(g); g.connect(audioCtx.destination);
+            o.start(); o.stop(audioCtx.currentTime + dur);
+        }
+        const sounds = {
+            coin: () => { playBeep(1200,'sine',0.06); setTimeout(()=>playBeep(1600,'sine',0.06),40); },
+            potion: () => { playBeep(500,'sine',0.04); setTimeout(()=>playBeep(700,'sine',0.04),40); setTimeout(()=>playBeep(900,'sine',0.04),80); },
+            sword: () => { playBeep(200,'sawtooth',0.1); playBeep(80,'triangle',0.15); },
+            magic: () => { playBeep(300,'sine',0.2); playBeep(500,'sawtooth',0.15); playBeep(800,'triangle',0.1); },
+            take: () => { playBeep(300,'sawtooth',0.08); setTimeout(()=>playBeep(150,'sawtooth',0.1),30); },
+            secret: () => { playBeep(440,'sine',0.08); setTimeout(()=>playBeep(660,'sine',0.08),80); setTimeout(()=>playBeep(880,'sine',0.12),160); },
+            alert: () => { playBeep(600,'square',0.05); setTimeout(()=>playBeep(800,'square',0.05),60); setTimeout(()=>playBeep(1000,'square',0.08),120); },
+            repup: () => { playBeep(500,'sine',0.05); setTimeout(()=>playBeep(700,'sine',0.05),50); setTimeout(()=>playBeep(900,'sine',0.05),100); setTimeout(()=>playBeep(1200,'sine',0.1),150); },
+            error: () => playBeep(80,'square',0.15),
+            send: () => playBeep(400,'sine',0.03),
+        };
+
+        // ==================== HELPERS ====================
+        const $ = id => document.getElementById(id);
+
+        function addLog(msg, type) {
+            const t = new Date().toLocaleTimeString();
+            S.logs.push({time:t, msg, type});
+            if (S.logs.length > 300) S.logs.shift();
+            const lc = $('logContent');
+            if (lc) {
+                const d = document.createElement('div');
+                d.textContent = `[${t}] ${msg}`;
+                d.className = type || '';
+                lc.appendChild(d);
+                lc.scrollTop = lc.scrollHeight;
             }
-        });
+        }
 
-        document.getElementById('sendBtn').addEventListener('click', sendMsg);
-        document.getElementById('userInput').addEventListener('keypress', e => {
-            if (e.key === 'Enter') sendMsg();
-        });
-
-        // Загрузка URL из localStorage
-        const saved = localStorage.getItem('ollama_url');
-        if (saved) {
-            document.getElementById('ollamaUrl').value = saved;
-            ollamaURL = saved;
+        function addSysMsg(text, cls) {
+            const d = document.createElement('div');
+            d.className = `msg lmsg ${cls}`;
+            d.textContent = text;
+            $('messages').appendChild(d);
+            $('messages').scrollTop = $('messages').scrollHeight;
         }
 
         function addMsg(text, cls) {
             const d = document.createElement('div');
             d.className = `msg ${cls}`;
-            d.textContent = text;
-            document.getElementById('messages').appendChild(d);
-            document.getElementById('messages').scrollTop = document.getElementById('messages').scrollHeight;
+            d.innerHTML = text;
+            $('messages').appendChild(d);
+            $('messages').scrollTop = $('messages').scrollHeight;
         }
 
-        async function sendMsg() {
-            const input = document.getElementById('userInput');
-            const msg = input.value.trim();
-            if (!msg || !ollamaURL) return;
-
-            addMsg(msg, 'user');
-            conversation.push({ role: 'user', content: msg });
-            input.value = '';
-            document.getElementById('sendBtn').disabled = true;
-
-            try {
-                const r = await fetch(ollamaURL + '/api/chat', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        model: document.getElementById('model').value,
-                        messages: conversation.slice(-10),
-                        stream: false,
-                    }),
-                });
-                const d = await r.json();
-                if (d.message?.content) {
-                    addMsg(d.message.content, 'bot');
-                    conversation.push({ role: 'assistant', content: d.message.content });
-                }
-            } catch (e) {
-                addMsg('❌ Ошибка: ' + e.message, 'bot');
+        function updateUI() {
+            const ac = getActiveChar();
+            $('balDisplay').textContent = S.balance;
+            $('cname').textContent = ac ? '🎭 ' + ac.name : '🤖';
+            $('repDisplay').textContent = ac && ac.pattern === 'reputation' ? '⭐' + (ac.reputation || 0) : '';
+            $('patBadge').textContent = ac ? ac.pattern : '';
+            const mv = $('modelSelect').value;
+            const badge = $('badge');
+            if (mv.startsWith('ollama:')) {
+                badge.textContent = 'Ollama';
+                badge.className = 'badge ol';
+            } else if (mv.startsWith('groq:')) {
+                badge.textContent = 'Groq';
+                badge.className = 'badge gr';
+            } else if (mv.startsWith('gradio:')) {
+                badge.textContent = 'Gradio';
+                badge.className = 'badge ol';
+            } else {
+                badge.textContent = 'OR';
+                badge.className = 'badge or';
             }
-            document.getElementById('sendBtn').disabled = false;
+            renderInv();
+            document.body.className = S.theme;
+            $('themeSelect').value = S.theme;
         }
+
+        function renderInv() {
+            const items = Object.entries(S.inventory);
+            $('invItems').innerHTML = items.length ?
+                items.map(([n,c]) => `<div class="inv-item"><span>${n}</span><span class="cnt">${c}</span></div>`).join('') :
+                '<div class="empty">Пусто</div>';
+        }
+
+        function getActiveChar() {
+            return S.characters.find(c => c.id === S.activeCharId) || null;
+        }
+
+        function showAlert(title, text) {
+            $('alertTitle').textContent = title;
+            $('alertText').textContent = text;
+            $('alertOverlay').style.display = 'flex';
+            sounds.alert();
+        }
+
+        // ==================== CHARACTERS ====================
+        function genId() { return 'c' + Date.now() + Math.random().toString(36).slice(2,6); }
+
+        function defaultChar() {
+            return {
+                id: genId(), name: 'Незнакомец', lang: 'ru', pattern: 'talk',
+                persona: 'Ты — дружелюбный собеседник. Отвечай коротко.',
+                items: 'SWORD,POTION,SHIELD', prices: '50,30,75',
+                surpriseChance: 20, surprises: 'GIVE:MONEY 50|GIVE:POTION 2|SOUND:magic|ALERT:🎉 Сюрприз!',
+                reputation: 0, repThreshold: 5,
+                repLow: 'Ты холоден и недоверчив.', repHigh: 'Ты дружелюбен и щедр!',
+                conversation: [], msgCount: 0,
+            };
+        }
+
+        function saveChars() { localStorage.setItem('rpg_chars', JSON.stringify(S.characters)); }
+
+        function loadChars() {
+            const raw = localStorage.getItem('rpg_chars');
+            if (raw) { try { S.characters = JSON.parse(raw); } catch(e) { S.characters = []; } }
+            if (!S.characters.length) {
+                const c = defaultChar();
+                c.name = 'Торговец Бартоломью'; c.pattern = 'trade';
+                c.persona = 'Ты — торговец. Говори с восточным акцентом. Продавай предметы: GIVE:SWORD 1 TAKE:MONEY 50. Отвечай коротко.';
+                S.characters.push(c);
+                const c2 = defaultChar();
+                c2.name = 'Мудрец'; c2.pattern = 'reputation';
+                c2.persona = 'Ты — мудрый старец. Сначала недоверчив, но теплеешь с ростом репутации.';
+                S.characters.push(c2);
+                saveChars();
+            }
+            if (!S.activeCharId && S.characters.length) S.activeCharId = S.characters[0].id;
+        }
+
+        function renderCharList() {
+            const list = $('charList');
+            list.innerHTML = S.characters.map(c => `
+                <div class="char-card ${c.id === S.activeCharId ? 'active' : ''}" data-id="${c.id}">
+                    <div>
+                        <div class="cc-name">${c.name} ${c.lang==='en'?'🇬🇧':c.lang==='de'?'🇩🇪':c.lang==='fr'?'🇫🇷':c.lang==='es'?'🇪🇸':c.lang==='jp'?'🇯🇵':'🇷🇺'}</div>
+                        <div class="cc-pat">${c.pattern==='trade'?'🛒 Торговец':c.pattern==='surprise'?'🎁 Сюрприз':c.pattern==='reputation'?'⭐ Репутация':'💬 Диалог'}</div>
+                        ${c.pattern==='reputation'?`<div class="cc-rep">⭐${c.reputation||0}</div>`:''}
+                    </div>
+                    <div class="cc-btns">
+                        <button class="selChar" data-id="${c.id}">▶</button>
+                        <button class="editChar" data-id="${c.id}">✏️</button>
+                        <button class="delChar" data-id="${c.id}">🗑</button>
+                    </div>
+                </div>
+            `).join('');
+            $('charSelect').innerHTML = S.characters.map(c =>
+                `<option value="${c.id}" ${c.id===S.activeCharId?'selected':''}>${c.name}</option>`
+            ).join('');
+            updateUI();
+        }
+
+        // ==================== PROMPT ====================
+        function buildPrompt() {
+            const c = getActiveChar();
+            if (!c) return null;
+            
+            let base = '';
+            
+            // Жёсткое указание языка
+            const langMap = { 
+                ru: 'Русский', en: 'English', de: 'Deutsch', fr: 'Français', 
+                es: 'Español', jp: '日本語' 
+            };
+            
+            // Системная инструкция по языку — самая первая и жирная
+            base += `[ВАЖНО] Отвечай ТОЛЬКО на ${langMap[c.lang] || 'Русском'} языке. Не используй другие языки. `;
+            
+            // Специфичные инструкции для английского
+            if (c.lang === 'en') {
+                base += 'You MUST respond in English only. Do not use Russian or any other language. ';
+            }
+
+            if (c.pattern === 'trade') {
+                const items = c.items.split(',').map(s=>s.trim());
+                const prices = c.prices.split(',').map(s=>s.trim());
+                const priceList = items.map((it,i) => `${it} (${prices[i]||'?'} монет)`).join(', ');
+                base += `Ты — торговец ${c.name}. ${c.persona} Товары: ${priceList}. Используй GIVE:ПРЕДМЕТ кол-во и TAKE:MONEY сумма. SOUND:coin при сделке. ОТВЕЧАЙ КОРОТКО. `;
+            } else if (c.pattern === 'surprise') {
+                base += `Ты — ${c.name}. ${c.persona} Иногда (шанс ${c.surpriseChance}%) используй случайную команду: ${c.surprises}. ОТВЕЧАЙ КОРОТКО. `;
+            } else if (c.pattern === 'reputation') {
+                const rep = c.reputation || 0;
+                if (rep < c.repThreshold) {
+                    base += `Ты — ${c.name}. Репутация низкая (${rep}/${c.repThreshold}). ${c.repLow} ОТВЕЧАЙ КОРОТКО. `;
+                } else {
+                    base += `Ты — ${c.name}. Репутация высокая (${rep}/${c.repThreshold}). ${c.repHigh} ОТВЕЧАЙ КОРОТКО. `;
+                }
+                base += `После хорошего диалога используй REPUP:1. `;
+            } else {
+                base += `Ты — ${c.name}. ${c.persona} ОТВЕЧАЙ КОРОТКО. `;
+            }
+
+            const items = Object.entries(S.inventory);
+            if (items.length) base += ' Инвентарь: ' + items.map(([n,c]) => `${n}x${c}`).join(', ');
+            if (S.balance) base += ' Монет: ' + S.balance;
+            
+            return base;
+        }
+
+        // ==================== COMMANDS ====================
+        function processCommands(text, isBot) {
+            let cleaned = text;
+            const allGives = [], allTakes = [], allSounds = [], allAlerts = [], allRepups = [];
+
+            [...text.matchAll(/GIVE:(\w+)\s+(\d+)/gi)].forEach(m => allGives.push({item:m[1].toUpperCase(), amount:parseInt(m[2]), raw:m[0]}));
+            [...text.matchAll(/TAKE:(\w+)\s+(\d+)/gi)].forEach(m => allTakes.push({item:m[1].toUpperCase(), amount:parseInt(m[2]), raw:m[0]}));
+            [...text.matchAll(/SOUND:(\w+)/gi)].forEach(m => allSounds.push({name:m[1].toLowerCase(), raw:m[0]}));
+            [...text.matchAll(/ALERT:(.+)/gi)].forEach(m => allAlerts.push({text:m[1].trim(), raw:m[0]}));
+            [...text.matchAll(/REPUP:(\d+)/gi)].forEach(m => allRepups.push({amount:parseInt(m[1]), raw:m[0]}));
+
+            allGives.forEach(g => {
+                if (g.item === 'MONEY') { S.balance += g.amount; addSysMsg(`+${g.amount} 🪙`,'gv'); addLog(`+MONEY ${g.amount}`,'gv'); sounds.coin(); }
+                else { S.inventory[g.item] = (S.inventory[g.item]||0) + g.amount; addSysMsg(`+${g.item} x${g.amount}`,'gv'); addLog(`+${g.item} x${g.amount}`,'gv'); sounds.potion(); }
+                cleaned = cleaned.replace(g.raw, '');
+            });
+
+            allTakes.forEach(t => {
+                if (t.item === 'MONEY') { const tk = Math.min(t.amount, S.balance); S.balance -= tk; if (tk>0) { addSysMsg(`-${tk} 🪙`,'tk'); addLog(`-MONEY ${tk}`,'tk'); sounds.take(); } }
+                else { const cur = S.inventory[t.item]||0; const tk = Math.min(t.amount, cur); if (tk>0) { S.inventory[t.item] = cur - tk; if (S.inventory[t.item]<=0) delete S.inventory[t.item]; addSysMsg(`-${t.item} x${tk}`,'tk'); addLog(`-${t.item} x${tk}`,'tk'); sounds.take(); } }
+                cleaned = cleaned.replace(t.raw, '');
+            });
+
+            allSounds.forEach(s => { if (sounds[s.name]) sounds[s.name](); addLog(`SOUND:${s.name}`,'sd'); cleaned = cleaned.replace(s.raw, ''); });
+            allAlerts.forEach(a => { setTimeout(()=>showAlert('📢', a.text), Math.random()*500+200); addLog(`ALERT: ${a.text}`,'alt'); cleaned = cleaned.replace(a.raw, ''); });
+            allRepups.forEach(r => {
+                const c = getActiveChar();
+                if (c && c.pattern==='reputation') { c.reputation = (c.reputation||0) + r.amount; addSysMsg(`⭐ +${r.amount} репутация`,'rep'); addLog(`REP +${r.amount} (${c.reputation})`,'rep'); sounds.repup(); saveChars(); updateUI(); }
+                cleaned = cleaned.replace(r.raw, '');
+            });
+
+            cleaned = cleaned.replace(/\*(.+?)\*/g, '<strong>$1</strong>').replace(/\s+/g, ' ').trim();
+            if (allGives.length+allTakes.length+allRepups.length > 0) { updateUI(); saveData(); }
+            return cleaned || (allGives.length+allTakes.length+allSounds.length+allAlerts.length+allRepups.length>0 ? '' : text);
+        }
+
+        // ==================== SEND MESSAGE ====================
+        async function sendMsg() {
+            const msg = $('userInput').value.trim();
+            if (!msg) return;
+            const ac = getActiveChar();
+            if (!ac) { alert('Выбери персонажа!'); return; }
+
+            const userClean = processCommands(msg, false);
+            const displayText = userClean || msg;
+            addMsg(displayText, 'umsg');
+            ac.conversation.push({ role: 'user', content: displayText });
+            ac.msgCount = (ac.msgCount || 0) + 1;
+            $('userInput').value = '';
+            $('sendBtn').disabled = true;
+            sounds.send();
+            saveChars();
+            updateUI();
+
+            const prompt = buildPrompt();
+            const MAX_HISTORY = 8;
+            if (ac.conversation.length > MAX_HISTORY) {
+                ac.conversation = ac.conversation.slice(-MAX_HISTORY);
+            }
+
+            const apiMessages = [];
+            if (prompt) apiMessages.push({ role: 'system', content: prompt });
+            apiMessages.push(...ac.conversation.map(m => ({ role: m.role, content: m.content.replace(/<[^>]+>/g, '') })));
+
+            const mv = $('modelSelect').value;
+            let reply = null;
+
+            // 1. Ollama
+            if (mv.startsWith('ollama:')) {
+                try {
+                    const ollamaModel = mv.replace('ollama:', '');
+                    const ollamaURL = S.ollamaUrl || localStorage.getItem('ollama_url') || 'http://localhost:11434';
+                    const ollamaMessages = [];
+                    if (prompt) ollamaMessages.push({ role: 'system', content: prompt });
+                    ollamaMessages.push(...ac.conversation.map(m => ({ role: m.role, content: m.content.replace(/<[^>]+>/g, '') })));
+
+                    const r = await fetch(ollamaURL + '/api/chat', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ model: ollamaModel, messages: ollamaMessages, stream: false }),
+                    });
+                    const d = await r.json();
+                    if (d.error) throw new Error(d.error);
+                    if (d.message?.content) {
+                        reply = d.message.content;
+                        S.provider = 'ollama';
+                        addLog('Ollama ответил', 'sd');
+                    }
+                } catch (e) {
+                    addSysMsg('Ollama: ' + e.message, 'error');
+                    addLog('Ollama ошибка: ' + e.message, 'error');
+                }
+            }
+            // Gradio
+            if (!reply && mv.startsWith('gradio:')) {
+                try {
+                    const gURL = S.gradioUrl || localStorage.getItem('gradio_url') || '';
+                    if (!gURL) throw new Error('Введи Gradio URL в настройках');
+                    
+                    const r = await fetch(gURL + '/api/chat', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ message: msg }),
+                    });
+                    const d = await r.json();
+                    if (d.response) { reply = d.response; S.provider = 'gradio'; }
+                    else if (d.data?.[0]) { reply = d.data[0]; S.provider = 'gradio'; }
+                    else throw new Error('Нет ответа');
+                } catch (e) { addSysMsg('Gradio: ' + e.message, 'error'); }
+            }
+            // 2. Groq
+            if (!reply && S.groqKey && mv.startsWith('groq:')) {
+                try {
+                    const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+                        method: 'POST',
+                        headers: { 'Authorization': 'Bearer ' + S.groqKey, 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ model: mv.replace('groq:', ''), messages: apiMessages, temperature: 0.8, max_completion_tokens: 150 }),
+                    });
+                    const d = await r.json();
+                    if (d.error) throw new Error(d.error.message);
+                    if (d.choices?.[0]?.message?.content) { reply = d.choices[0].message.content; S.provider = 'groq'; }
+                } catch (e) { addSysMsg('Groq: ' + e.message, 'error'); sounds.error(); }
+            }
+
+            // 3. OpenRouter
+            if (!reply && S.orKey) {
+                try {
+                    const om = mv.startsWith('or:') ? mv.replace('or:', '') : 'openrouter/free';
+                    const r = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+                        method: 'POST',
+                        headers: { 'Authorization': 'Bearer ' + S.orKey, 'Content-Type': 'application/json', 'HTTP-Referer': window.location.href },
+                        body: JSON.stringify({ model: om, messages: apiMessages, temperature: 0.8, max_tokens: 150 }),
+                    });
+                    const d = await r.json();
+                    if (d.error) throw new Error(d.error.message);
+                    if (d.choices?.[0]?.message?.content) { reply = d.choices[0].message.content; S.provider = 'openrouter'; }
+                } catch (e) { addSysMsg('OR: ' + e.message, 'error'); }
+            }
+
+            if (reply) {
+                const clean = processCommands(reply, true);
+                const displayReply = clean || reply;
+                addMsg(displayReply, 'bmsg');
+                ac.conversation.push({ role: 'assistant', content: displayReply });
+
+                if (ac.pattern === 'surprise' && Math.random() * 100 < (ac.surpriseChance || 20)) {
+                    const surps = ac.surprises.split('|').map(s => s.trim());
+                    const surp = surps[Math.floor(Math.random() * surps.length)];
+                    if (surp) {
+                        setTimeout(() => { addSysMsg('🎁 Сюрприз!', 'sd'); processCommands(surp, true); updateUI(); }, 500);
+                    }
+                }
+            }
+
+            $('sendBtn').disabled = false;
+            updateUI();
+            saveData();
+        }
+
+        // ==================== SAVE/LOAD ====================
+        function saveData() {
+            localStorage.setItem('rpg_global', JSON.stringify({
+                balance: S.balance, inventory: S.inventory,
+                logs: S.logs.slice(-100), theme: S.theme,
+                provider: S.provider, activeCharId: S.activeCharId,
+            }));
+        }
+
+        function loadData() {
+            const raw = localStorage.getItem('rpg_global');
+            if (raw) { try { Object.assign(S, JSON.parse(raw)); } catch(e) {} }
+            S.groqKey = localStorage.getItem('groq_key') || '';
+            S.orKey = localStorage.getItem('or_key') || '';
+            S.ollamaUrl = localStorage.getItem('ollama_url') || '';
+            S.gradioUrl = localStorage.getItem('gradio_url') || '';
+
+            $('groqKey').value = S.groqKey;
+            $('orKey').value = S.orKey;
+            $('ollamaUrl').value = S.ollamaUrl;
+            $('gradioUrl').value = S.gradioUrl;
+
+            $('themeSelect').value = S.theme || 'theme-dark';
+            document.body.className = S.theme || 'theme-dark';
+            loadChars();
+            renderCharList();
+            renderConv();
+            updateUI();
+        }
+
+        function renderConv() {
+            $('messages').innerHTML = '';
+            const ac = getActiveChar();
+            if (!ac || !ac.conversation.length) {
+                addMsg('👋 Выбери персонажа и начни диалог!', 'bmsg');
+                return;
+            }
+            ac.conversation.forEach(m => addMsg(m.content, m.role === 'user' ? 'umsg' : 'bmsg'));
+        }
+
+        // ==================== TABS ====================
+        function switchTab(btn) {
+            document.querySelectorAll('.topbar button').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+            btn.classList.add('active');
+            document.getElementById(btn.id.replace('tab', 'panel')).classList.add('active');
+        }
+
+        // ==================== EVENTS ====================
+        $('saveAPI').addEventListener('click', () => {
+            const gk = $('groqKey').value.trim();
+            const ok = $('orKey').value.trim();
+            const ou = $('ollamaUrl').value.trim();
+            const gu = $('gradioUrl').value.trim();
+
+            if (gk) { localStorage.setItem('groq_key', gk); S.groqKey = gk; }
+            if (ok) { localStorage.setItem('or_key', ok); S.orKey = ok; }
+            if (ou) { localStorage.setItem('ollama_url', ou); S.ollamaUrl = ou; }
+            if (gu) { localStorage.setItem('gradio_url', gu); S.gradioUrl = gu; }
+
+            $('apiStatus').textContent = '✅';
+            $('apiStatus').className = 'status ok';
+        });
+
+        $('themeSelect').addEventListener('change', () => {
+            S.theme = $('themeSelect').value;
+            document.body.className = S.theme;
+            saveData();
+        });
+
+        $('sendBtn').addEventListener('click', sendMsg);
+        $('userInput').addEventListener('keypress', e => { if (e.key === 'Enter') sendMsg(); });
+        $('modelSelect').addEventListener('change', updateUI);
+        $('charSelect').addEventListener('change', () => {
+            S.activeCharId = $('charSelect').value;
+            renderConv(); updateUI(); saveData();
+        });
+
+        // Инвентарь
+        $('saveBtn').addEventListener('click', () => { saveData(); saveChars(); alert('✅'); });
+        $('loadBtn').addEventListener('click', () => { loadData(); renderConv(); updateUI(); alert('✅'); });
+        $('exportBtn').addEventListener('click', () => {
+            const blob = new Blob([JSON.stringify({global:S, chars:S.characters}, null, 2)], {type:'application/json'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a'); a.href = url; a.download = 'rpg_full.json'; a.click();
+            URL.revokeObjectURL(url);
+        });
+        $('importBtn').addEventListener('click', () => $('importFile').click());
+        $('importFile').addEventListener('change', (e) => {
+            const f = e.target.files[0];
+            if (!f) return;
+            const r = new FileReader();
+            r.onload = (ev) => {
+                try {
+                    const d = JSON.parse(ev.target.result);
+                    if (d.global) Object.assign(S, d.global);
+                    if (d.chars) S.characters = d.chars;
+                    saveData(); saveChars(); renderCharList(); renderConv(); updateUI(); alert('✅');
+                } catch(er) { alert('❌ JSON'); }
+            };
+            r.readAsText(f); $('importFile').value = '';
+        });
+        $('resetBtn').addEventListener('click', () => {
+            if (confirm('Сбросить всё?')) {
+                S.balance = 0; S.inventory = {};
+                S.characters.forEach(c => { c.conversation = []; c.msgCount = 0; c.reputation = 0; });
+                saveData(); saveChars(); updateUI();
+                $('messages').innerHTML = '<div class="msg bmsg">🔄 Сброшено</div>';
+            }
+        });
+        $('clearLog').addEventListener('click', () => { S.logs = []; $('logContent').innerHTML = ''; });
+
+        // Список персонажей
+        $('charList').addEventListener('click', (e) => {
+            const btn = e.target.closest('button');
+            if (!btn) return;
+            const id = btn.dataset.id;
+            if (btn.classList.contains('selChar')) {
+                S.activeCharId = id; renderConv(); updateUI(); saveData(); renderCharList();
+            } else if (btn.classList.contains('delChar')) {
+                if (S.characters.length <= 1) { alert('Нельзя удалить последнего!'); return; }
+                S.characters = S.characters.filter(c => c.id !== id);
+                if (S.activeCharId === id) S.activeCharId = S.characters[0]?.id;
+                saveChars(); renderCharList(); renderConv(); updateUI();
+            } else if (btn.classList.contains('editChar')) {
+                editChar(id);
+            }
+        });
+
+        $('addCharBtn').addEventListener('click', () => {
+            const nc = defaultChar();
+            S.characters.push(nc);
+            S.activeCharId = nc.id;
+            saveChars(); renderCharList(); editChar(nc.id);
+        });
+
+        function editChar(id) {
+            const c = S.characters.find(ch => ch.id === id);
+            if (!c) return;
+            $('editName').value = c.name;
+            $('editLang').value = c.lang;
+            $('editPattern').value = c.pattern;
+            $('editPersona').value = c.persona;
+            $('editItems').value = c.items;
+            $('editPrices').value = c.prices;
+            $('editSurpriseChance').value = c.surpriseChance;
+            $('editSurprises').value = c.surprises;
+            $('editRepThreshold').value = c.repThreshold;
+            $('editRepLow').value = c.repLow;
+            $('editRepHigh').value = c.repHigh;
+            togglePatternFields();
+            $('charEditor').style.display = 'flex';
+            $('charEditor').dataset.editId = id;
+            $('charList').style.display = 'none';
+            $('addCharBtn').style.display = 'none';
+        }
+
+        function togglePatternFields() {
+            const pat = $('editPattern').value;
+            $('tradeSettings').style.display = pat === 'trade' ? 'flex' : 'none';
+            $('surpriseSettings').style.display = pat === 'surprise' ? 'flex' : 'none';
+            $('reputationSettings').style.display = pat === 'reputation' ? 'flex' : 'none';
+        }
+        $('editPattern').addEventListener('change', togglePatternFields);
+
+        $('saveCharEdit').addEventListener('click', () => {
+            const id = $('charEditor').dataset.editId;
+            const c = S.characters.find(ch => ch.id === id);
+            if (!c) return;
+            c.name = $('editName').value.trim() || 'Безымянный';
+            c.lang = $('editLang').value;
+            c.pattern = $('editPattern').value;
+            c.persona = $('editPersona').value.trim();
+            if (c.pattern === 'trade') { c.items = $('editItems').value.trim(); c.prices = $('editPrices').value.trim(); }
+            if (c.pattern === 'surprise') { c.surpriseChance = parseInt($('editSurpriseChance').value) || 20; c.surprises = $('editSurprises').value.trim(); }
+            if (c.pattern === 'reputation') { c.repThreshold = parseInt($('editRepThreshold').value) || 5; c.repLow = $('editRepLow').value.trim(); c.repHigh = $('editRepHigh').value.trim(); }
+            c.conversation = []; c.msgCount = 0;
+            S.activeCharId = id;
+            saveChars(); renderCharList(); renderConv(); updateUI();
+            $('charEditor').style.display = 'none';
+            $('charList').style.display = 'flex';
+            $('addCharBtn').style.display = 'block';
+        });
+
+        $('cancelCharEdit').addEventListener('click', () => {
+            $('charEditor').style.display = 'none';
+            $('charList').style.display = 'flex';
+            $('addCharBtn').style.display = 'block';
+        });
+
+        document.querySelectorAll('.topbar button').forEach(btn => {
+            btn.addEventListener('click', () => switchTab(btn));
+        });
+
+        // ==================== INIT ====================
+        loadData();
+        if (!getActiveChar()?.conversation?.length) {
+            $('messages').innerHTML = '<div class="msg bmsg">👋 Создай персонажа во вкладке 👥 и начни диалог!</div>';
+        }
+        updateUI();
     </script>
 </body>
 </html>
